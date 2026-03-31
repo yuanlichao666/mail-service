@@ -1,6 +1,7 @@
 # 首次启动前: cp config/config.example.yaml config/config.yaml 并修改 duckmailApiKey / jwtSecret / domains
 services:
   mail-service:
+    container_name: mail-service
     build: .
     image: mail-service:local
     ports:
