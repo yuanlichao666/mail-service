@@ -1,23 +1,27 @@
 /**
- * 测试脚本共用：从 config/config.yaml 读取 duckmailApiKey、首个 domain 等。
+ * 测试目标（二选一，必须明确）：
+ * - local：在你当前这台机器上，测「本机运行的 mail-service」（127.0.0.1 + config / .env 端口）
+ * - remote：在你当前这台机器上，测「已部署在公网服务器上的服务」（默认 47.253.177.201）
  *
- * 默认连线上部署（与 http://47.253.177.201/ 的 Apache :80 无关，DuckMail API 在 :3001）。
- * 测本机：TEST_TARGET=local 或 MAIL_SERVICE_BASE=http://127.0.0.1:3000
+ * 设置方式：环境变量 TEST_TARGET=local | remote（remote 可写为 server）
+ * 或使用 npm：npm run test:mail:local / npm run test:mail:remote
  *
- * 覆盖项：MAIL_SERVICE_BASE、MAIL_SERVICE_HOST_PORT（本机测试时覆盖 HTTP 宿主机端口）、
- * MAIL_SERVICE_API_KEY、MAIL_TEST_DOMAIN、SMTP_TEST_HOST、SMTP_TEST_PORT、CONFIG_PATH
+ * 兼容：MAIL_SERVICE_USE_LOCAL=1 等价于 TEST_TARGET=local
+ *
+ * 覆盖项：MAIL_SERVICE_BASE、MAIL_REMOTE_BASE、MAIL_REMOTE_SMTP_HOST、MAIL_REMOTE_SMTP_PORT（remote 默认 SMTP 端口，不设则为 25）、
+ * MAIL_SERVICE_HOST_PORT、MAIL_SERVICE_API_KEY、MAIL_TEST_DOMAIN、SMTP_TEST_HOST、SMTP_TEST_PORT、CONFIG_PATH
  */
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 
-/** 线上：容器 HTTP 映射为宿主机 3001 */
+/** 本地测「线上」时的默认公网入口（HTTP 非 :80，一般为 docker 映射端口） */
 const DEFAULT_REMOTE_HTTP_BASE = 'http://47.253.177.201:3001';
 const DEFAULT_REMOTE_SMTP_HOST = '47.253.177.201';
-/** 线上 SMTP：宿主机 2525/25 均映射到容器入站 SMTP */
-const DEFAULT_REMOTE_SMTP_PORT = 2525;
+/** 从公网测 SMTP 入站：通常只放行标准 25（与容器内 2525 的映射一致）；未开放 2525 时用 25 */
+const DEFAULT_REMOTE_SMTP_PORT = 25;
 
-/** 与 docker-compose 中 ${HTTP_PORT:-3000} 对齐：宿主机映射端口，用于在服务器上跑 TEST_TARGET=local */
+/** 与 docker-compose 中 ${HTTP_PORT:-3000} 对齐：在服务器上跑 test:mail:local 时用宿主机端口 */
 function readHttpHostPortFromDotEnv() {
   const envFile = path.join(process.cwd(), '.env');
   if (!fs.existsSync(envFile)) return null;
@@ -25,7 +29,26 @@ function readHttpHostPortFromDotEnv() {
   return m ? parseInt(m[1], 10) : null;
 }
 
+/**
+ * @returns {'local' | 'remote'}
+ */
+function resolveTestTarget() {
+  const raw = (process.env.TEST_TARGET || '').trim().toLowerCase();
+  if (process.env.MAIL_SERVICE_USE_LOCAL === '1') {
+    return 'local';
+  }
+  if (raw === 'local' || raw === 'l') return 'local';
+  if (raw === 'remote' || raw === 'server' || raw === 'r') return 'remote';
+  throw new Error(
+    '必须指定测试目标：在本机测本机服务请设 TEST_TARGET=local；在本机测线上服务请设 TEST_TARGET=remote。\n' +
+      '也可直接执行：npm run test:mail:local  或  npm run test:mail:remote',
+  );
+}
+
 function loadTestConfig() {
+  const mode = resolveTestTarget();
+  const useLocal = mode === 'local';
+
   const configPath =
     process.env.CONFIG_PATH ||
     path.join(process.cwd(), 'config', 'config.yaml');
@@ -38,9 +61,13 @@ function loadTestConfig() {
   const httpPort = c.httpPort ?? 3000;
   const cfgSmtpPort = c.smtpPort ?? 2525;
 
-  const useLocal =
-    process.env.TEST_TARGET === 'local' ||
-    process.env.MAIL_SERVICE_USE_LOCAL === '1';
+  const remoteHttpBase =
+    (process.env.MAIL_REMOTE_BASE || DEFAULT_REMOTE_HTTP_BASE).replace(
+      /\/$/,
+      '',
+    );
+  const remoteSmtpHost =
+    process.env.MAIL_REMOTE_SMTP_HOST || DEFAULT_REMOTE_SMTP_HOST;
 
   const localHttpPort =
     process.env.MAIL_SERVICE_HOST_PORT != null &&
@@ -52,17 +79,23 @@ function loadTestConfig() {
     process.env.MAIL_SERVICE_BASE ||
     (useLocal
       ? `http://127.0.0.1:${localHttpPort}`
-      : DEFAULT_REMOTE_HTTP_BASE);
+      : remoteHttpBase);
 
   let smtpHost =
     process.env.SMTP_TEST_HOST ||
-    (useLocal ? '127.0.0.1' : DEFAULT_REMOTE_SMTP_HOST);
+    (useLocal ? '127.0.0.1' : remoteSmtpHost);
+
+  const remoteSmtpPortDefault =
+    process.env.MAIL_REMOTE_SMTP_PORT != null &&
+    process.env.MAIL_REMOTE_SMTP_PORT !== ''
+      ? Number(process.env.MAIL_REMOTE_SMTP_PORT)
+      : DEFAULT_REMOTE_SMTP_PORT;
 
   let smtpPort = process.env.SMTP_TEST_PORT
     ? Number(process.env.SMTP_TEST_PORT)
     : useLocal
       ? cfgSmtpPort
-      : DEFAULT_REMOTE_SMTP_PORT;
+      : remoteSmtpPortDefault;
 
   const apiKey =
     process.env.MAIL_SERVICE_API_KEY || c.duckmailApiKey || '';
@@ -77,7 +110,8 @@ function loadTestConfig() {
     domain,
     smtpHost,
     smtpPort,
+    testTarget: mode,
   };
 }
 
-module.exports = { loadTestConfig };
+module.exports = { loadTestConfig, resolveTestTarget };
