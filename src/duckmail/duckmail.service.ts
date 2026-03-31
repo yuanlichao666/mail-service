@@ -115,7 +115,7 @@ export class DuckmailService {
   }
 
   /** GET /messages */
-  listMessages(mailbox: string) {
+  listMessages(mailbox: string, clientTrace?: string) {
     const rows = this.mailStorage.getMailboxMessages(mailbox);
     // receivedAt：毫秒时间戳，便于客户端按「最新一封」选 OTP，避免登录阶段误用注册邮件里的旧码
     const ids = rows.map((m) => ({
@@ -129,20 +129,28 @@ export class DuckmailService {
           `${m.id.slice(0, 8)}…@${new Date(m.receivedAt).toISOString()} "${truncateSubject(m.subject, 60)}"`,
       )
       .join(' | ');
+    const tracePrefix =
+      clientTrace && clientTrace.trim().length > 0
+        ? `[trace=${truncateSubject(clientTrace, 120)}] `
+        : '';
     this.logger.log(
-      `[GET /messages] mailbox=${mailbox} count=${rows.length}${summary ? ` → ${summary}` : ''}`,
+      `${tracePrefix}[GET /messages] mailbox=${mailbox} count=${rows.length}${summary ? ` → ${summary}` : ''}`,
     );
     return { 'hydra:member': ids };
   }
 
   /** GET /messages/:id */
-  getMessage(mailbox: string, id: string) {
+  getMessage(mailbox: string, id: string, clientTrace?: string) {
     const msg = this.mailStorage.getMessage(mailbox, id);
     if (!msg) {
       throw new NotFoundException('邮件不存在');
     }
+    const tracePrefix =
+      clientTrace && clientTrace.trim().length > 0
+        ? `[trace=${truncateSubject(clientTrace, 120)}] `
+        : '';
     this.logger.log(
-      `[GET /messages/:id] mailbox=${mailbox} id=${id} receivedAt=${new Date(msg.receivedAt).toISOString()} subject="${truncateSubject(msg.subject, 80)}" from=${msg.from.address || '?'}`,
+      `${tracePrefix}[GET /messages/:id] mailbox=${mailbox} id=${id} receivedAt=${new Date(msg.receivedAt).toISOString()} subject="${truncateSubject(msg.subject, 80)}" from=${msg.from.address || '?'}`,
     );
     return {
       id: msg.id,

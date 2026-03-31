@@ -49,8 +49,11 @@ export class DuckmailController {
 
   @Get("messages")
   @UseGuards(MailboxJwtGuard)
-  messages(@Req() req: Request & { mailbox: string }) {
-    return this.duckmail.listMessages(req.mailbox);
+  messages(
+    @Req() req: Request & { mailbox: string },
+    @Headers("x-client-trace") clientTrace?: string,
+  ) {
+    return this.duckmail.listMessages(req.mailbox, clientTrace);
   }
 
   @Get("messages/:id")
@@ -58,7 +61,8 @@ export class DuckmailController {
   oneMessage(
     @Req() req: Request & { mailbox: string },
     @Param("id") id: string,
+    @Headers("x-client-trace") clientTrace?: string,
   ) {
-    return this.duckmail.getMessage(req.mailbox, id);
+    return this.duckmail.getMessage(req.mailbox, id, clientTrace);
   }
 }
