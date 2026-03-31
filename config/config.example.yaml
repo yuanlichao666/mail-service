@@ -14,7 +14,7 @@ jwtExpiresIn: "7d"
 # isVerified: 带 API Key 时 GET /domains 仅列出此项为 true 的域名
 # isActive / isPrivate: 公共模式筛选
 domains:
-  - domain: "goodfish.cloud"
+  - domain: "mail.goodfish.cloud"
     isVerified: true
     isActive: true
     isPrivate: false
