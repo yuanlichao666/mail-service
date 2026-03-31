@@ -22,10 +22,18 @@ export class SmtpInboundService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit() {
     const port = this.config.get('smtpPort', { infer: true }) as number;
+    const log = this.logger;
     this.server = new SMTPServer({
       authOptional: true,
       disabledCommands: ['AUTH'],
       size: 25 * 1024 * 1024,
+      onConnect(session, callback) {
+        // 公网收信排错：若长时间无此日志，多为 DNS/25 端口/云厂商策略，而非应用层
+        log.log(
+          `SMTP 入站连接 ${session.remoteAddress ?? 'unknown'} -> :${port}`,
+        );
+        callback();
+      },
       onMailFrom(address, session, callback) {
         callback();
       },
@@ -47,7 +55,7 @@ export class SmtpInboundService implements OnModuleInit, OnModuleDestroy {
             const rcpt = session.envelope.rcptTo || [];
             const addrs = rcpt.map((r) => r.address);
             this.mailStorage.appendParsedMail(addrs, parsed);
-            this.logger.debug(
+            this.logger.log(
               `收到邮件 -> ${addrs.join(', ')} 主题: ${parsed.subject || ''}`,
             );
             callback();
