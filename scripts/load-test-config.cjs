@@ -4,8 +4,8 @@
  * 默认连线上部署（与 http://47.253.177.201/ 的 Apache :80 无关，DuckMail API 在 :3001）。
  * 测本机：TEST_TARGET=local 或 MAIL_SERVICE_BASE=http://127.0.0.1:3000
  *
- * 覆盖项：MAIL_SERVICE_BASE、MAIL_SERVICE_API_KEY、MAIL_TEST_DOMAIN、
- * SMTP_TEST_HOST、SMTP_TEST_PORT、CONFIG_PATH
+ * 覆盖项：MAIL_SERVICE_BASE、MAIL_SERVICE_HOST_PORT（本机测试时覆盖 HTTP 宿主机端口）、
+ * MAIL_SERVICE_API_KEY、MAIL_TEST_DOMAIN、SMTP_TEST_HOST、SMTP_TEST_PORT、CONFIG_PATH
  */
 const fs = require('fs');
 const path = require('path');
@@ -16,6 +16,14 @@ const DEFAULT_REMOTE_HTTP_BASE = 'http://47.253.177.201:3001';
 const DEFAULT_REMOTE_SMTP_HOST = '47.253.177.201';
 /** 线上 SMTP：宿主机 2525/25 均映射到容器入站 SMTP */
 const DEFAULT_REMOTE_SMTP_PORT = 2525;
+
+/** 与 docker-compose 中 ${HTTP_PORT:-3000} 对齐：宿主机映射端口，用于在服务器上跑 TEST_TARGET=local */
+function readHttpHostPortFromDotEnv() {
+  const envFile = path.join(process.cwd(), '.env');
+  if (!fs.existsSync(envFile)) return null;
+  const m = fs.readFileSync(envFile, 'utf8').match(/^\s*HTTP_PORT\s*=\s*(\d+)/m);
+  return m ? parseInt(m[1], 10) : null;
+}
 
 function loadTestConfig() {
   const configPath =
@@ -34,9 +42,17 @@ function loadTestConfig() {
     process.env.TEST_TARGET === 'local' ||
     process.env.MAIL_SERVICE_USE_LOCAL === '1';
 
+  const localHttpPort =
+    process.env.MAIL_SERVICE_HOST_PORT != null &&
+    process.env.MAIL_SERVICE_HOST_PORT !== ''
+      ? Number(process.env.MAIL_SERVICE_HOST_PORT)
+      : readHttpHostPortFromDotEnv() ?? httpPort;
+
   let base =
     process.env.MAIL_SERVICE_BASE ||
-    (useLocal ? `http://127.0.0.1:${httpPort}` : DEFAULT_REMOTE_HTTP_BASE);
+    (useLocal
+      ? `http://127.0.0.1:${localHttpPort}`
+      : DEFAULT_REMOTE_HTTP_BASE);
 
   let smtpHost =
     process.env.SMTP_TEST_HOST ||
