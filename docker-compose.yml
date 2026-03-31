@@ -1,0 +1,14 @@
+# 首次启动前: cp config/config.example.yaml config/config.yaml 并修改 duckmailApiKey / jwtSecret / domains
+services:
+  mail-service:
+    build: .
+    image: mail-service:local
+    ports:
+      - "3000:3000"
+      - "2525:2525"
+    volumes:
+      # 将本目录下 config/config.yaml 挂载覆盖镜像内默认配置
+      - ./config/config.yaml:/app/config/config.yaml:ro
+    environment:
+      CONFIG_PATH: /app/config/config.yaml
+    restart: unless-stopped

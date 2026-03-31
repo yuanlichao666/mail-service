@@ -1,0 +1,19 @@
+# 复制为 config/config.yaml 后修改（或通过 CONFIG_PATH 挂载）
+# DuckMail 兼容 API 的管理密钥，与注册机 DUCKMAIL_KEY 一致
+duckmailApiKey: "dk_change_me_to_long_random"
+
+httpPort: 3000
+smtpPort: 2525
+
+# 用于签发邮箱 JWT（POST /token），与 API Key 不同
+jwtSecret: "change-in-production-use-long-random-string"
+jwtExpiresIn: "7d"
+
+# 域名需在 DNS 中配置 MX 指向本机 SMTP 端口（或经端口映射）
+# isVerified: 带 API Key 时 GET /domains 仅列出此项为 true 的域名
+# isActive / isPrivate: 公共模式筛选
+domains:
+  - domain: "mail.example.local"
+    isVerified: true
+    isActive: true
+    isPrivate: false
