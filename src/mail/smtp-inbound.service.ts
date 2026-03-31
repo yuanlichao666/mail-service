@@ -25,7 +25,8 @@ export class SmtpInboundService implements OnModuleInit, OnModuleDestroy {
     const log = this.logger;
     this.server = new SMTPServer({
       authOptional: true,
-      disabledCommands: ['AUTH'],
+      // 未配置 key/cert 时勿宣告 STARTTLS，否则公网 MTA 升级 TLS 会因自签/无证书触发 bad certificate 并可能拖垮进程
+      disabledCommands: ['AUTH', 'STARTTLS'],
       size: 25 * 1024 * 1024,
       onConnect(session, callback) {
         // 公网收信排错：若长时间无此日志，多为 DNS/25 端口/云厂商策略，而非应用层
@@ -65,6 +66,12 @@ export class SmtpInboundService implements OnModuleInit, OnModuleDestroy {
             callback(err as Error);
           });
       },
+    });
+
+    this.server.on('error', (err: Error & { remoteAddress?: string }) => {
+      this.logger.warn(
+        `SMTP 会话异常${err.remoteAddress ? ` ${err.remoteAddress}` : ''}: ${err.message}`,
+      );
     });
 
     this.server.listen(port, () => {
