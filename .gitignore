@@ -2,3 +2,6 @@ node_modules
 dist
 .env
 config/config.yaml
+
+# 含 SSH 等敏感信息，禁止提交
+服务器日志查看指南.md
