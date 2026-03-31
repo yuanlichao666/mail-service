@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -13,6 +14,8 @@ import { CreateAccountDto } from './dto/create-account.dto';
 
 @Injectable()
 export class DuckmailService {
+  private readonly logger = new Logger(DuckmailService.name);
+
   constructor(
     private readonly config: ConfigService<MailServiceConfig>,
     private readonly mailStorage: MailStorageService,
@@ -113,7 +116,22 @@ export class DuckmailService {
 
   /** GET /messages */
   listMessages(mailbox: string) {
-    const ids = this.mailStorage.listMessageIds(mailbox);
+    const rows = this.mailStorage.getMailboxMessages(mailbox);
+    // receivedAt：毫秒时间戳，便于客户端按「最新一封」选 OTP，避免登录阶段误用注册邮件里的旧码
+    const ids = rows.map((m) => ({
+      id: m.id,
+      receivedAt: m.receivedAt,
+    }));
+    // 排错 wrong_email_otp：若邮箱内多封含验证码，客户端可能取了旧 id；看 receivedAt / 顺序
+    const summary = rows
+      .map(
+        (m) =>
+          `${m.id.slice(0, 8)}…@${new Date(m.receivedAt).toISOString()} "${truncateSubject(m.subject, 60)}"`,
+      )
+      .join(' | ');
+    this.logger.log(
+      `[GET /messages] mailbox=${mailbox} count=${rows.length}${summary ? ` → ${summary}` : ''}`,
+    );
     return { 'hydra:member': ids };
   }
 
@@ -123,6 +141,9 @@ export class DuckmailService {
     if (!msg) {
       throw new NotFoundException('邮件不存在');
     }
+    this.logger.log(
+      `[GET /messages/:id] mailbox=${mailbox} id=${id} receivedAt=${new Date(msg.receivedAt).toISOString()} subject="${truncateSubject(msg.subject, 80)}" from=${msg.from.address || '?'}`,
+    );
     return {
       id: msg.id,
       from: { address: msg.from.address, ...(msg.from.name ? { name: msg.from.name } : {}) },
@@ -132,4 +153,9 @@ export class DuckmailService {
       html: msg.html,
     };
   }
+}
+
+function truncateSubject(s: string, max: number): string {
+  if (!s) return '';
+  return s.length <= max ? s : `${s.slice(0, max)}…`;
 }

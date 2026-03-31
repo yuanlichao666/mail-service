@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import type { AddressObject, ParsedMail } from 'mailparser';
@@ -22,6 +22,7 @@ interface AccountRecord {
 
 @Injectable()
 export class MailStorageService {
+  private readonly logger = new Logger(MailStorageService.name);
   private accounts = new Map<string, AccountRecord>();
   private messages = new Map<string, StoredMessage[]>();
 
@@ -103,7 +104,16 @@ export class MailStorageService {
       };
       list.push(msg);
       this.messages.set(to, list);
+      this.logger.log(
+        `[SMTP 入库] to=${to} id=${msg.id} receivedAt=${new Date(msg.receivedAt).toISOString()} from=${fromAddr.address || '?'} subject=${truncateLog(subject, 100)}`,
+      );
     }
+  }
+
+  /** 供读信 API 与排错日志使用（按入库顺序，即时间序） */
+  getMailboxMessages(mailbox: string): readonly StoredMessage[] {
+    const key = this.normalizeEmail(mailbox);
+    return this.messages.get(key) || [];
   }
 
   private extractFrom(parsed: ParsedMail): { address: string; name?: string } {
@@ -130,14 +140,17 @@ export class MailStorageService {
   }
 
   listMessageIds(mailbox: string): { id: string }[] {
-    const key = this.normalizeEmail(mailbox);
-    const list = this.messages.get(key) || [];
+    const list = this.getMailboxMessages(mailbox);
     return list.map((m) => ({ id: m.id }));
   }
 
   getMessage(mailbox: string, id: string): StoredMessage | undefined {
-    const key = this.normalizeEmail(mailbox);
-    const list = this.messages.get(key) || [];
+    const list = this.getMailboxMessages(mailbox);
     return list.find((m) => m.id === id);
   }
+}
+
+function truncateLog(s: string, max: number): string {
+  if (!s) return '';
+  return s.length <= max ? s : `${s.slice(0, max)}…`;
 }
