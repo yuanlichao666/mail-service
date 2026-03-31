@@ -1,11 +1,14 @@
 # 首次启动前: cp config/config.example.yaml config/config.yaml 并修改 duckmailApiKey / jwtSecret / domains
+# 可选: 复制 .env.example 为 .env，设置 HTTP_PORT（如与主机 3000 冲突时用 3001）
+# 公网 MX 投递走主机 25 -> 容器 2525；须在云安全组放行 TCP 25，DNS 配置 MX 指向 mail 子域 A 记录
 services:
   mail-service:
     container_name: mail-service
     build: .
     image: mail-service:local
     ports:
-      - "3000:3000"
+      - "${HTTP_PORT:-3000}:3000"
+      - "25:2525"
       - "2525:2525"
     volumes:
       # 将本目录下 config/config.yaml 挂载覆盖镜像内默认配置
