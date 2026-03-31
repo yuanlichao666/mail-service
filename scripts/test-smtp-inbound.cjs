@@ -1,8 +1,7 @@
 /**
- * 公网/本地 SMTP 入站测试：向本机 SMTP 端口（默认 2525）投递一封邮件，
- * 再通过 DuckMail JWT 轮询 GET /messages 与 GET /messages/:id 校验。
- * 模拟「外部 MTA 投递到 MX」：公网场景为 25 端口映射到本服务 2525。
- * 运行：npm run test:smtp
+ * SMTP 入站测试：向当前目标主机的 SMTP 端口投递邮件，再用 JWT 拉取校验。
+ * TEST_TARGET=local 测本机；TEST_TARGET=remote 从本机连线上 SMTP（须放行安全组）。
+ * 运行：npm run test:smtp:local | test:smtp:remote
  */
 const nodemailer = require('nodemailer');
 const { loadTestConfig } = require('./load-test-config.cjs');

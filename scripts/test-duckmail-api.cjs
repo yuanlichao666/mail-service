@@ -1,7 +1,7 @@
 /**
  * DuckMail 兼容 HTTP API 测试（/health、/domains、/accounts、/token、/messages）
- * 依赖：服务已启动，config/config.yaml 已配置。
- * 运行：npm run test:duckmail
+ * 依赖：config/config.yaml；须指定 TEST_TARGET（见 load-test-config.cjs）。
+ * 运行：npm run test:duckmail:local | test:duckmail:remote
  */
 const { loadTestConfig } = require('./load-test-config.cjs');
 

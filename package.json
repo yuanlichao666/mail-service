@@ -7,10 +7,15 @@
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
-    "test:duckmail": "node scripts/test-duckmail-api.cjs",
-    "test:smtp": "node scripts/test-smtp-inbound.cjs",
-    "test:mail": "node scripts/test-duckmail-api.cjs && node scripts/test-smtp-inbound.cjs",
-    "test:mail:local": "TEST_TARGET=local node scripts/test-duckmail-api.cjs && TEST_TARGET=local node scripts/test-smtp-inbound.cjs"
+    "test:duckmail:local": "TEST_TARGET=local node scripts/test-duckmail-api.cjs",
+    "test:duckmail:remote": "TEST_TARGET=remote node scripts/test-duckmail-api.cjs",
+    "test:smtp:local": "TEST_TARGET=local node scripts/test-smtp-inbound.cjs",
+    "test:smtp:remote": "TEST_TARGET=remote node scripts/test-smtp-inbound.cjs",
+    "test:mail:local": "TEST_TARGET=local node scripts/test-duckmail-api.cjs && TEST_TARGET=local node scripts/test-smtp-inbound.cjs",
+    "test:mail:remote": "TEST_TARGET=remote node scripts/test-duckmail-api.cjs && TEST_TARGET=remote node scripts/test-smtp-inbound.cjs",
+    "test:mail": "npm run test:mail:local",
+    "test:duckmail": "npm run test:duckmail:local",
+    "test:smtp": "npm run test:smtp:local"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
