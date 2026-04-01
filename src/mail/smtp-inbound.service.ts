@@ -35,9 +35,10 @@ export class SmtpInboundService implements OnModuleInit, OnModuleDestroy {
         );
         callback();
       },
-      onMailFrom(address, session, callback) {
+      // 须用箭头函数：smtp-server 以普通函数调用 onMailFrom 时 this 不是本服务实例
+      onMailFrom: (address, session, callback) => {
         const ip = session.remoteAddress ?? '?';
-        this.logger.log(
+        log.log(
           `SMTP MAIL FROM:<${address.address ?? '?'}> <- ${ip}`,
         );
         callback();
