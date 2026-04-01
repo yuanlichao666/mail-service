@@ -107,6 +107,8 @@ export class MailStorageService {
       this.logger.log(
         `[SMTP 入库] to=${to} id=${msg.id} receivedAt=${new Date(msg.receivedAt).toISOString()} from=${fromAddr.address || '?'} subject=${truncateLog(subject, 100)}`,
       );
+      const bodyLog = bodyForSmtpLog(msg);
+      this.logger.log(`[SMTP 正文] id=${msg.id} to=${to} ${bodyLog}`);
     }
   }
 
@@ -153,4 +155,13 @@ export class MailStorageService {
 function truncateLog(s: string, max: number): string {
   if (!s) return '';
   return s.length <= max ? s : `${s.slice(0, max)}…`;
+}
+
+/** 入库日志用：优先纯文本，否则 HTML，再否则 intro；统一截断避免撑爆日志 */
+function bodyForSmtpLog(msg: StoredMessage): string {
+  const t = msg.text?.trim();
+  if (t) return truncateLog(t, 3000);
+  const h = msg.html;
+  if (typeof h === 'string' && h.trim()) return truncateLog(h, 3000);
+  return truncateLog(msg.intro, 500) || '(empty)';
 }
