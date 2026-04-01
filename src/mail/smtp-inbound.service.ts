@@ -36,13 +36,23 @@ export class SmtpInboundService implements OnModuleInit, OnModuleDestroy {
         callback();
       },
       onMailFrom(address, session, callback) {
+        const ip = session.remoteAddress ?? '?';
+        this.logger.log(
+          `SMTP MAIL FROM:<${address.address ?? '?'}> <- ${ip}`,
+        );
         callback();
       },
       onRcptTo: (address, session, callback) => {
         const email = this.mailStorage.normalizeEmail(address.address);
+        const ip = session.remoteAddress ?? '?';
         if (this.mailStorage.hasAccount(email)) {
+          this.logger.log(`SMTP RCPT OK ${email} <- ${ip}`);
           callback();
         } else {
+          // 仅有「入站连接」无「入库」时，多半是 RCPT 未通过：外网 MTA 不会为本机已注册的邮箱投递
+          this.logger.warn(
+            `SMTP RCPT 拒绝（未注册或已过期）: ${email} <- ${ip}`,
+          );
           callback(
             new Error(
               `550 收件人未在本服务注册: ${email}`,
